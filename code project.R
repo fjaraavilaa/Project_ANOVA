@@ -5,6 +5,7 @@ library(tidyr) # Data cleaning
 library(xtable) # Used to generate latex output
 library(pander) # Used to generate tables that are more readable (not shown in output)
 library(gridExtra) # Used to plot multiple plots at once
+library(lmtest) # Used for Durbin Watson Test
 rm(list = ls()) # Reset global environment
 
 # ---------------------
@@ -117,36 +118,56 @@ plotList[["pointsCombi"]] <- eyecontactLabeled %>%
   theme(legend.position = "none")
 do.call("grid.arrange", c(plotList, ncol=2))
 remove(plotList) # Keeping global environment clean
+
 # ------------------------- Here starts Francisco's code
 #First of all, creating the model
+eye_contact <- eyecontact # Francisco uses _, he must be Mexican
 model_for_anova <- lm(Score ~ Gender * Photo, data = eye_contact)
+summary(model_for_anova)
+
 #Creating a qqPlot with the residuals
 ###Small observation: Please let us know if we should follow the same color scale
 ###as the ggplot2 graphs
 car::qqPlot(model_for_anova$residuals)
+
 #Also important to take a look at the density of the residuals
 ggplot(fortify(model_for_anova), aes(x = .resid, y = ..density..)) + 
   geom_histogram(fill = "#81D4FA", color =  "#58CCED" , bins = 20) + 
-  geom_density() + theme_minimal() 
+  geom_density() + theme_minimal() +
+  labs(x = "Residual value", y = "Density", title = "Histogram with density plot of the residuals",
+       subtitle = "Used to asses the normality assumption")
+
 #And the tests for normality
 kolg_test <- ks.test(model_for_anova$residuals, "pnorm", alternative = 'two.sided')
 sh_test <- shapiro.test(model_for_anova$residuals)
+
 #Creating the tables to show both tests
 recompiling_stats <- rbind(c(kolg_test$statistic, kolg_test$p.value), c(sh_test$statistic, sh_test$p.value))
 colnames(recompiling_stats) <- c('Test Statistic', 'P-Value')
 rownames(recompiling_stats) <- c('Kolmogorov-Smirnov Test', 'Shapiro-Wilks Test')
 recompiling_stats %>% knitr::kable('latex', label = 'Normality tests', booktabs = TRUE) %>% 
   kableExtra::kable_styling(latex_options = c('hold_position'), full_width = FALSE)
+
 #Plot to assess equality of variance
 ggplot(fortify(model_for_anova), aes(x = .fitted, y = rstandard(model_for_anova))) + 
   geom_point() + xlab('Fitted Value') + ylab('Standardized residuals') + theme_minimal() +
   stat_summary(geom = 'crossbar', width = 0.65, fatten = 0, color = 'black',
-               fun.data = function(x){c(y=mean(x), ymin=mean(x), ymax=mean(x))})
+               fun.data = function(x){c(y=mean(x), ymin=mean(x), ymax=mean(x))}) +
+  labs(title = "Plot of standardized residuals vs the fitted values", subtitle = "Used to assess homoscedasticity assumption")
+
 #Formal test for the equality of variance
 car::leveneTest(Score ~ Gender*Photo, data = eye_contact)
+eyecontactLabeled %>%
+  mutate(groups = paste(Gender, Photo, sep =  " - ")) -> temp
+bartlett.test(Score ~ groups, data = temp)
+remove(temp)
+
 #Independence
 res_graph <- data.frame(lag_res = rstandard(model_for_anova)[-c(1)], 
                    res = rstandard(model_for_anova)[-c(dim(eyecontact)[1])])
 ggplot(res_graph, aes(x = lag_res, y = res)) + geom_point() + 
   geom_smooth(method = 'lm', se = FALSE) + xlab('Lagged Residuals') + 
-  ylab('Residuals')
+  ylab('Residuals') + theme_minimal() +
+  labs(title = "Lagged residual vs residual plot", subtitle = "Used to assess independence assumption")
+
+dwtest(model_for_anova)
