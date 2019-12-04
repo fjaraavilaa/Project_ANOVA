@@ -1,5 +1,4 @@
-"gethoob"
-  -Mitja
+test
 
 library(dplyr) # Piping symble
 library(readr) # Importing data frame
@@ -174,3 +173,44 @@ ggplot(res_graph, aes(x = lag_res, y = res)) + geom_point() +
   labs(title = "Lagged residual vs residual plot", subtitle = "Used to assess independence assumption")
 
 dwtest(model_for_anova)
+
+# ------------------------- Here starts Mitja's code
+
+#Non parametric Kruskal-Wallis test
+
+
+kruskal.test(Score ~ Gender, data = eyecontactLabeled)
+kruskal.test(Score ~ Photo, data = eyecontactLabeled)
+
+inter_Gender_Photo<-interaction(eyecontactLabeled$Gender, eyecontactLabeled$Photo)
+kruskal.test(Score ~ interAB, data = eyecontactLabeled)
+
+kruskal.test(Score ~ Gender*Photo, data = eyecontactLabeled)
+#As the p-value is less than the significance level 0.05
+#we can conclude that there are significant differences between the treatment groups.
+
+#pairwise comparisons between group levels with corrections for multiple testing.
+install.packages("FSA")
+library(FSA)
+
+eyecontactLabeled$Gender = factor(eyecontactLabeled$Gender, 
+                     levels=unique(eyecontactLabeled$Gender))
+eyecontactLabeled$Gender
+
+eyecontactLabeled$Photo = factor(eyecontactLabeled$Photo, 
+                            levels=unique(eyecontactLabeled$Photo))
+eyecontactLabeled$Photo
+### Dunn test
+
+library(FSA)
+
+dunntest_Gender = dunnTest(Score ~ Gender,
+                          data=eyecontactLabeled,
+                          method="bh") 
+
+dunntest_Gender #it doesn't work fuck --> (Error in Psort[1, i] : incorrect number of dimensions)
+dunntest_Photo = dunnTest(Score ~ Photo,
+              data=eyecontactLabeled,
+              method="bh")   
+dunntest_Photo
+
