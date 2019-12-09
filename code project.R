@@ -11,6 +11,7 @@ rm(list = ls()) # Reset global environment
 # ---------------------
 # Importing the dataset
 # ---------------------
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 eyecontact <- read_csv("eyecontact.txt", 
                        col_names = FALSE, col_types = cols(X5 = col_skip()))
 colnames(eyecontact) <- c("ID", "Score", "Gender", "Photo")
