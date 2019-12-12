@@ -8,6 +8,7 @@ library(xtable) # Used to generate latex output
 library(pander) # Used to generate tables that are more readable (not shown in output)
 library(gridExtra) # Used to plot multiple plots at once
 library(lmtest) # Used for Durbin Watson Test
+library(rcompanion) #Schierer-Ray-Hare Test
 rm(list = ls()) # Reset global environment
 
 # ---------------------
@@ -122,9 +123,26 @@ plotList[["pointsCombi"]] <- eyecontactLabeled %>%
 do.call("grid.arrange", c(plotList, ncol=2))
 remove(plotList) # Keeping global environment clean
 
-# ------------------------- Here starts Francisco's code
+# Interaction plot
+
+eyecontactLabeled %>%
+  group_by(Gender, Photo) %>%
+  summarise(n = n(), mean = sum(Score)/n()) -> intData
+pander(intData)
+
+ggplot(intData, aes(x = Photo, y = mean)) + 
+  geom_point() +
+  stat_summary(fun.y=max, geom="line", group = 1, aes(colour = "Female"), size = 0.8) +
+  stat_summary(fun.y=min, geom="line", group = 1, linetype = 2, aes(colour = "Male"), size = 0.8) + #THIS ONLY WORKS IN THIS SPECIFIC CASE WITH THIS DATA
+  theme_minimal() +
+  labs(x = "", y = "Score given by recruiter", title = "Interaction plot between gender and type of picture",
+       subtitle = "Used to assess the interaction between both variables") +
+  scale_fill_manual(values=c("#3895D3", "#81D4FA")) +
+  scale_colour_manual(values=c("#3895D3", "#81D4FA")) 
+
+# ------------------------- Assumptions
 #First of all, creating the model
-eye_contact <- eyecontact # Francisco uses _, he must be Mexican
+eye_contact <- eyecontact 
 model_for_anova <- lm(Score ~ Gender * Photo, data = eye_contact)
 summary(model_for_anova)
 
@@ -175,43 +193,19 @@ ggplot(res_graph, aes(x = lag_res, y = res)) + geom_point() +
 
 dwtest(model_for_anova)
 
-# ------------------------- Here starts Mitja's code
+# ------------------------- Multiple comparisons
 
-#Non parametric Kruskal-Wallis test
+model <- aov(Score ~ Gender*Photo, data = eyecontactLabeled)
+TukeyHSD(model)
 
+require_pairwise <- rbind(c(1, 1, 1, 0),
+                          c(-0.5, 0,-1, -1),
+                          c(-0.5, -1,0, 1))
 
-kruskal.test(Score ~ Gender, data = eyecontactLabeled)
-kruskal.test(Score ~ Photo, data = eyecontactLabeled)
+ScheffeTest(model)$Photo %>% xtable
 
-inter_Gender_Photo<-interaction(eyecontactLabeled$Gender, eyecontactLabeled$Photo)
-kruskal.test(Score ~ interAB, data = eyecontactLabeled)
+ScheffeTest(model, contrasts = require_pairwise)$Gender %>% xtable
 
-kruskal.test(Score ~ Gender*Photo, data = eyecontactLabeled)
-#As the p-value is less than the significance level 0.05
-#we can conclude that there are significant differences between the treatment groups.
+#-------------------- Non parametric test
 
-#pairwise comparisons between group levels with corrections for multiple testing.
-install.packages("FSA")
-library(FSA)
-
-eyecontactLabeled$Gender = factor(eyecontactLabeled$Gender, 
-                     levels=unique(eyecontactLabeled$Gender))
-eyecontactLabeled$Gender
-
-eyecontactLabeled$Photo = factor(eyecontactLabeled$Photo, 
-                            levels=unique(eyecontactLabeled$Photo))
-eyecontactLabeled$Photo
-### Dunn test
-
-library(FSA)
-
-dunntest_Gender = dunnTest(Score ~ Gender,
-                          data=eyecontactLabeled,
-                          method="bh") 
-
-dunntest_Gender #it doesn't work fuck --> (Error in Psort[1, i] : incorrect number of dimensions)
-dunntest_Photo = dunnTest(Score ~ Photo,
-              data=eyecontactLabeled,
-              method="bh")   
-dunntest_Photo
-
+scheirerRayHare(Score ~ Gender + Photo , data = eyecontactLabeled)
