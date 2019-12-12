@@ -138,7 +138,7 @@ ggplot(fortify(model_for_anova), aes(x = .resid, y = ..density..)) +
   geom_histogram(fill = "#81D4FA", color =  "#58CCED" , bins = 20) + 
   geom_density() + theme_minimal() +
   labs(x = "Residual value", y = "Density", title = "Histogram with density plot of the residuals",
-       subtitle = "Used to asses the normality assumption")
+       subtitle = "Used to assess the normality assumption")
 
 #And the tests for normality
 kolg_test <- ks.test(model_for_anova$residuals, "pnorm", alternative = 'two.sided')
